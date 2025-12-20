@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -25,8 +26,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -41,6 +44,7 @@ class MainActivity : ComponentActivity() {
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        installSplashScreen()
         requestNotificationPermission()
 
         NotificationUtils.createChannel(this)
@@ -65,7 +69,7 @@ class MainActivity : ComponentActivity() {
             .build()
 
         val request = PeriodicWorkRequestBuilder<LeetCodeWorker>(
-            1, TimeUnit.HOURS
+            15, TimeUnit.MINUTES
         ).setInputData(workData).build()
 
         WorkManager.getInstance(this)
@@ -100,6 +104,7 @@ fun MainScreen(username: String, onSave: (String) -> Unit) {
     val scope = rememberCoroutineScope()
 
     Scaffold(
+        containerColor = Color.Black,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { innerPadding ->
         Column(
@@ -114,14 +119,17 @@ fun MainScreen(username: String, onSave: (String) -> Unit) {
                 onValueChange = { text = it },
                 label = { Text("LeetCode Username") }
             )
-            Button(onClick = {
-                if (text.isNotBlank()) {
-                    onSave(text)
-                    scope.launch {
-                        snackbarHostState.showSnackbar("Username Saved! Worker scheduled.")
+            Button(
+                onClick = {
+                    if (text.isNotBlank()) {
+                        onSave(text)
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Username Saved! Worker scheduled.")
+                        }
                     }
-                }
-            }) {
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF32CD32))
+            ) {
                 Text("Save")
             }
         }
