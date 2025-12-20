@@ -1,6 +1,8 @@
 package com.yourpackage.codec
 
+import android.Manifest
 import android.content.Context
+import androidx.annotation.RequiresPermission
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import java.time.Instant
@@ -11,19 +13,14 @@ class LeetCodeWorker(
     params: WorkerParameters
 ) : CoroutineWorker(context, params) {
 
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override suspend fun doWork(): Result {
         return try {
-            val todayKey = getTodayUnixDay()
-            val submissions = LeetCodeApi.getTodaySubmissions()
+            val username = inputData.getString("username") ?: return Result.failure()
+            val submissions = LeetCodeApi.getTodaySubmissions(username)
 
-            val prefs = applicationContext
-                .getSharedPreferences("leetcode_prefs", Context.MODE_PRIVATE)
-
-            val lastNotified = prefs.getString("last_notified", "")
-
-            if (submissions == 0 && lastNotified != todayKey) {
+            if (submissions == 0) {
                 NotificationUtils.send(applicationContext)
-                prefs.edit().putString("last_notified", todayKey).apply()
             }
 
             Result.success()

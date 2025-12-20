@@ -32,7 +32,7 @@ object NotificationUtils {
     fun send(context: Context) {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_dialog_info)
-            .setContentTitle("LeetCode Reminder")
+            .setContentTitle("Snake")
             .setContentText("You haven't solved a LeetCode problem today.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()

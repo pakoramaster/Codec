@@ -11,16 +11,14 @@ import java.time.ZoneOffset
 
 object LeetCodeApi {
 
-    private const val USERNAME = "pakoramaster"
-
-    fun getTodaySubmissions(): Int {
+    fun getTodaySubmissions(username: String): Int {
         val client = OkHttpClient()
         val gson = Gson()
 
         val queryJson = """
         {
           "query": "query userProfileCalendar(${'$'}username: String!) { matchedUser(username: ${'$'}username) { submissionCalendar } }",
-          "variables": { "username": "$USERNAME" }
+          "variables": { "username": "$username" }
         }
         """.trimIndent()
 
@@ -32,11 +30,20 @@ object LeetCodeApi {
             .build()
 
         client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                return 0
+            }
+
             val responseBody = response.body?.string() ?: return 0
 
             val json = gson.fromJson(responseBody, JsonObject::class.java)
-            val calendarStr = json["data"]
-                .asJsonObject["matchedUser"]
+            val data = json.getAsJsonObject("data") ?: return 0
+            val matchedUser = data.get("matchedUser")
+            if (matchedUser == null || matchedUser.isJsonNull) {
+                return 0
+            }
+
+            val calendarStr = matchedUser
                 .asJsonObject["submissionCalendar"]
                 .asString
 

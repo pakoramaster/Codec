@@ -1,19 +1,40 @@
 package com.example.codec
 
 import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresPermission
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.yourpackage.codec.LeetCodeWorker
 import com.yourpackage.codec.NotificationUtils
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
-import android.content.pm.PackageManager
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 
 class MainActivity : ComponentActivity() {
 
@@ -22,27 +43,35 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         requestNotificationPermission()
 
-        NotificationUtils.send(this)
+        NotificationUtils.createChannel(this)
 
-
-//        NotificationUtils.createChannel(this) // test to check notifications
-        scheduleWorker()
+        val prefs = getSharedPreferences("leetcode_prefs", Context.MODE_PRIVATE)
+        val username = prefs.getString("username", "") ?: ""
+        if (username.isNotBlank()) {
+            scheduleWorker(username)
+        }
 
         setContent {
-            // Minimal UI – background app
+            MainScreen(username) { newUsername ->
+                prefs.edit().putString("username", newUsername).apply()
+                scheduleWorker(newUsername)
+            }
         }
     }
 
-    private fun scheduleWorker() {
-        val request =
-            PeriodicWorkRequestBuilder<LeetCodeWorker>(
-                1, TimeUnit.MINUTES
-            ).build()
+    private fun scheduleWorker(username: String) {
+        val workData = Data.Builder()
+            .putString("username", username)
+            .build()
+
+        val request = PeriodicWorkRequestBuilder<LeetCodeWorker>(
+            1, TimeUnit.HOURS
+        ).setInputData(workData).build()
 
         WorkManager.getInstance(this)
             .enqueueUniquePeriodicWork(
                 "leetcode_checker",
-                ExistingPeriodicWorkPolicy.KEEP,
+                ExistingPeriodicWorkPolicy.REPLACE,
                 request
             )
     }
@@ -62,6 +91,39 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
 
+@Composable
+fun MainScreen(username: String, onSave: (String) -> Unit) {
+    var text by remember { mutableStateOf(username) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
+    Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            TextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text("LeetCode Username") }
+            )
+            Button(onClick = {
+                if (text.isNotBlank()) {
+                    onSave(text)
+                    scope.launch {
+                        snackbarHostState.showSnackbar("Username Saved! Worker scheduled.")
+                    }
+                }
+            }) {
+                Text("Save")
+            }
+        }
+    }
 }
