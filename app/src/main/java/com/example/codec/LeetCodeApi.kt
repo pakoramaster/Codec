@@ -1,4 +1,4 @@
-package com.yourpackage.codec
+package com.example.codec
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
