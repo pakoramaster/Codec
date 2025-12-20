@@ -207,23 +207,22 @@ fun GreenPhosphorBloom(extraPadding: Dp = 0.dp) {
         )
 
         val layers = 6
-        val growthFactor = 0.05f
+        val growthFactor = 0.12f
 
         for (i in 0..layers) {
             val progress = i / layers.toFloat()
             val layerWidth = rectWidth * (1f + progress * growthFactor)
             val layerHeight = rectHeight * (1f + progress * growthFactor)
-            drawRect(
+
+            drawRoundRect(
                 color = Color(0xFF4AFF7A).copy(alpha = 0.15f * (1f - progress)),
                 topLeft = topLeft - Offset((layerWidth - rectWidth) / 2f, (layerHeight - rectHeight) / 2f),
-                size = Size(layerWidth, layerHeight)
+                size = Size(layerWidth, layerHeight),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(0.5.dp.toPx()) // adjust radius
             )
         }
     }
 }
-
-
-
 
 @Composable
 fun LeetCodeSnakeGif(
@@ -271,22 +270,33 @@ fun AnimatedDitherOverlay(modifier: Modifier = Modifier) {
     )
 
     Canvas(modifier = modifier) {
-        val stepPx = stepDp.toPx()      // ✅ convert here inside DrawScope
-        val actualOffset = yOffset * stepPx  // calculate pixel offset
+        val stepPx = stepDp.toPx()
+        val actualOffset = yOffset * stepPx
 
         val brightGreen = Color(0xFF6BFF9A)
         val glowGreen = Color(0xFF4AFF7A)
-        val rows = (size.height / stepPx).toInt()
 
-        // Inner phosphor edge
-        drawRect(
-            color = brightGreen.copy(alpha = 0.7f),
-            topLeft = Offset(1.dp.toPx(), 1.dp.toPx()),
-            size = Size(size.width - 1.dp.toPx(), size.height - 1.dp.toPx()),
-            style = Stroke(width = 1.25.dp.toPx())
+        // Define the "inner rectangle" as the GIF area
+        val edgePadding = 1.0.dp.toPx()          // distance from GIF to phosphor edge
+
+        val topLeft = Offset(edgePadding, edgePadding)
+        val sizeRect = Size(
+            size.width - 2 * edgePadding,
+            size.height - 2 * edgePadding
         )
 
-        // Animated vertical scanlines
+        val phosphorWidth = 2.dp.toPx()   // width of the phosphor edge
+
+        // --- Phosphor edge (draw on top) ---
+        drawRect(
+            color = brightGreen.copy(alpha = 0.7f),
+            topLeft = topLeft,
+            size = sizeRect,
+            style = Stroke(width = phosphorWidth)
+        )
+
+        // --- Animated vertical scanlines ---
+        val rows = (size.height / stepPx).toInt()
         for (y in 0 until rows step 3) {
             drawRect(
                 color = glowGreen.copy(alpha = 0.05f),
