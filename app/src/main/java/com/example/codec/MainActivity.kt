@@ -16,6 +16,11 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -27,12 +32,14 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -43,6 +50,7 @@ import androidx.work.WorkManager
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.decode.ImageDecoderDecoder
+import com.example.codec.ui.theme.MGS
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
@@ -162,23 +170,16 @@ fun MainScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Button(
+            CompactNeonButton(
+                text = "Save",
+                fontFamily = MGS, // your custom font
                 onClick = {
                     if (text.isNotBlank()) {
                         onSave(text)
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                "Username saved! Background worker scheduled."
-                            )
-                        }
+                        // show snackbar or do other logic here
                     }
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF32CD32)
-                )
-            ) {
-                Text("Save")
-            }
+                }
+            )
         }
     }
 }
@@ -306,6 +307,44 @@ fun AnimatedDitherOverlay(modifier: Modifier = Modifier) {
         }
     }
 }
+
+@Composable
+fun CompactNeonButton(
+    text: String,
+    fontFamily: androidx.compose.ui.text.font.FontFamily,
+    onClick: () -> Unit
+) {
+    val brightGreen = Color(0xFF6BFF9A)
+    val glowGreen = Color(0xFF4AFF7A)
+
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .border(
+                width = 2.dp,
+                brush = SolidColor(if (isPressed) brightGreen else glowGreen),
+                shape = RoundedCornerShape(2.dp)
+            )
+            .background(if (isPressed) glowGreen.copy(alpha = 0.5f) else Color.Transparent)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null // optional: remove ripple
+            ) { onClick() }
+            .padding(bottom = 3.dp, start = 13.dp, end = 12.dp)
+
+    ) {
+        Text(
+            text = text,
+            fontFamily = fontFamily,
+            fontSize = 24.sp,
+            color = if (isPressed) brightGreen else glowGreen
+        )
+    }
+}
+
 
 @RequiresApi(Build.VERSION_CODES.P)
 @Preview(showBackground = true)
