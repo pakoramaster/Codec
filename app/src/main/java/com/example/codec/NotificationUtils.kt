@@ -91,6 +91,6 @@ object NotificationUtils {
             .build()
 
         NotificationManagerCompat.from(context)
-            .notify(1001, notification)
+            .notify((0..10000).random(), notification)
     }
 }
