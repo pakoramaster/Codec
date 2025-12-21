@@ -27,14 +27,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -51,8 +48,10 @@ import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.decode.ImageDecoderDecoder
 import com.example.codec.ui.theme.MGS
-import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.ui.text.font.FontWeight
 
 class MainActivity : ComponentActivity() {
 
@@ -89,7 +88,7 @@ class MainActivity : ComponentActivity() {
             .build()
 
         val request = PeriodicWorkRequestBuilder<LeetCodeWorker>(
-            15, TimeUnit.MINUTES
+            2, TimeUnit.HOURS,
         ).setInputData(workData)
             .build()
 
@@ -126,7 +125,6 @@ fun MainScreen(
 ) {
     var text by remember { mutableStateOf(username) }
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     val imageLoader = ImageLoader.Builder(context)
@@ -157,22 +155,20 @@ fun MainScreen(
                 extraGlowPadding = 40.dp
             )
 
-
-
-
             Spacer(modifier = Modifier.height(24.dp))
 
-            TextField(
+            NeonTextField(
                 value = text,
                 onValueChange = { text = it },
-                label = { Text("LeetCode Username") }
+                fontFamily = MGS,
+                labelText = "LeetCode Username"
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             CompactNeonButton(
                 text = "Save",
-                fontFamily = MGS, // your custom font
+                fontFamily = MGS,
                 onClick = {
                     if (text.isNotBlank()) {
                         onSave(text)
@@ -307,6 +303,52 @@ fun AnimatedDitherOverlay(modifier: Modifier = Modifier) {
         }
     }
 }
+@Composable
+fun NeonTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    fontFamily: androidx.compose.ui.text.font.FontFamily,
+    labelText: String
+) {
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        singleLine = true,
+        textStyle = androidx.compose.ui.text.TextStyle(
+            fontFamily = fontFamily,
+            fontSize = 24.sp,
+            color = Color(0xFF6BFF9A)
+        ),
+        label = {
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = labelText,
+                    fontFamily = fontFamily,
+                    fontSize = 20.sp, // larger label
+                    color = Color(0xFF4AFF7A),
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        colors = TextFieldDefaults.colors(
+            focusedTextColor = Color(0xFF6BFF9A),
+            unfocusedTextColor = Color(0xFF6BFF9A),
+            focusedContainerColor = Color.Black,
+            unfocusedContainerColor = Color.Black,
+            cursorColor = Color(0xFF6BFF9A),
+            focusedIndicatorColor = Color(0xFF6BFF9A),
+            unfocusedIndicatorColor = Color(0xFF4AFF7A),
+            focusedLabelColor = Color(0xFF6BFF9A),
+            unfocusedLabelColor = Color(0xFF4AFF7A)
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 50.dp) // optional horizontal padding
+    )
+}
 
 @Composable
 fun CompactNeonButton(
@@ -344,7 +386,6 @@ fun CompactNeonButton(
         )
     }
 }
-
 
 @RequiresApi(Build.VERSION_CODES.P)
 @Preview(showBackground = true)

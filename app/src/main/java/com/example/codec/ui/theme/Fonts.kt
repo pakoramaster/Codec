@@ -5,7 +5,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import com.example.codec.R
 
-// Top-level definition of your custom font
+// Top-level definition custom font
 val MGS = FontFamily(
     Font(R.font.mgs_font, weight = FontWeight.Normal)
 )

@@ -2,12 +2,14 @@ package com.example.codec
 
 import android.Manifest
 import android.content.Context
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.annotation.RequiresPermission
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.example.codec.NotificationUtils
 import java.time.Instant
 import java.time.ZoneOffset
+import android.util.Log
 
 class LeetCodeWorker(
     context: Context,
@@ -23,6 +25,7 @@ class LeetCodeWorker(
             if (submissions == 0) {
                 NotificationUtils.send(applicationContext)
             }
+            Log.d("MainScreen", "Submissions count = $submissions")
 
             Result.success()
         } catch (e: Exception) {
@@ -30,6 +33,7 @@ class LeetCodeWorker(
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun getTodayUnixDay(): String {
         val now = Instant.now()
             .atZone(ZoneOffset.UTC)
