@@ -1,5 +1,7 @@
-package com.yourpackage.codec
+package com.example.codec
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import okhttp3.MediaType.Companion.toMediaType
@@ -55,6 +57,7 @@ object LeetCodeApi {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun getTodayUnixDay(): String {
         val now = Instant.now()
             .atZone(ZoneOffset.UTC)

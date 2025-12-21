@@ -1,4 +1,4 @@
-package com.yourpackage.codec
+package com.example.codec
 
 import android.Manifest
 import android.app.NotificationChannel
@@ -15,7 +15,6 @@ import android.os.Build
 import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import com.example.codec.R
 
 object NotificationUtils {
 
