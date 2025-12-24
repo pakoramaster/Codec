@@ -52,7 +52,6 @@ import java.util.concurrent.TimeUnit
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -80,9 +79,7 @@ class MainActivity : ComponentActivity() {
                 if (isValid) {
                     scheduleWorker(savedUsername)
                 } else {
-                    // The user is not valid, clear the saved preference
                     prefs.edit().remove("username").apply()
-                    // You might want to update the UI or show a message here
                 }
             }
         }
@@ -169,10 +166,6 @@ fun MainScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            val imageLoader = ImageLoader.Builder(LocalContext.current)
-                .components { add(ImageDecoderDecoder.Factory()) }
-                .build()
-
             LeetCodeSnakeGif(
                 imageLoader = imageLoader,
                 imageRes = R.drawable.snake_blink,
