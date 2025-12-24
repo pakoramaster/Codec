@@ -64,7 +64,7 @@ jobs:
 
       # 8️⃣ Upload APK as artifact
       - name: Upload APK
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: codec-apk
           path: app/build/outputs/apk/release/final/codec.apk
