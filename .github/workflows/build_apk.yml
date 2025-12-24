@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - main    # or the branch you want to build from
+      - main
   pull_request:
     branches:
       - main
@@ -15,14 +15,14 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      JAVA_HOME: /usr/lib/jvm/java-17-openjdk   # GitHub default Java 17
+      JAVA_HOME: /usr/lib/jvm/java-17-openjdk
 
     steps:
       # 1️⃣ Checkout the repo
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Set up JDK
+      # 2️⃣ Set up JDK 17
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
@@ -48,7 +48,7 @@ jobs:
           build-tools: 34.0.0
           ndk: 25.2.9519653
 
-      # 5️⃣ Grant execute permission for Gradle wrapper
+      # 5️⃣ Make gradlew executable
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
@@ -62,9 +62,25 @@ jobs:
           mkdir -p app/build/outputs/apk/release/final
           mv app/build/outputs/apk/release/*.apk app/build/outputs/apk/release/final/codec.apk
 
-      # 8️⃣ Upload APK as artifact
-      - name: Upload APK
+      # 8️⃣ Upload APK as artifact (optional backup)
+      - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
         with:
           name: codec-apk
           path: app/build/outputs/apk/release/final/codec.apk
+
+      # 9️⃣ Create GitHub Release (if tag exists)
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}  # use current tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 🔟 Upload APK to the release
+      - name: Upload APK to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/release/final/codec.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
