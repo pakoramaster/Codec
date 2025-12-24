@@ -42,7 +42,7 @@ jobs:
 
       # 4️⃣ Set up Android SDK
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v2
+        uses: android-actions/setup-android@v3
         with:
           api-level: 33
           build-tools: 34.0.0
