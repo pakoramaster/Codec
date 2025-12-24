@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android APK and Release
 
 on:
   workflow_dispatch:
@@ -11,14 +11,14 @@ on:
 
 jobs:
   build:
-    name: Build Release APK
+    name: Build and Release APK
     runs-on: ubuntu-latest
 
     env:
       JAVA_HOME: /usr/lib/jvm/java-17-openjdk
 
     steps:
-      # 1️⃣ Checkout the repo
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -48,7 +48,7 @@ jobs:
           build-tools: 34.0.0
           ndk: 25.2.9519653
 
-      # 5️⃣ Make gradlew executable
+      # 5️⃣ Grant execute permission for Gradle wrapper
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
@@ -62,25 +62,21 @@ jobs:
           mkdir -p app/build/outputs/apk/release/final
           mv app/build/outputs/apk/release/*.apk app/build/outputs/apk/release/final/codec.apk
 
-      # 8️⃣ Upload APK as artifact (optional backup)
-      - name: Upload APK as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: codec-apk
-          path: app/build/outputs/apk/release/final/codec.apk
+      # 8️⃣ Get the latest Git tag
+      - name: Get latest Git tag
+        id: get_tag
+        run: |
+          TAG=$(git describe --tags --abbrev=0)
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Using tag: $TAG"
 
-      # 9️⃣ Create GitHub Release (if tag exists)
-      - name: Create GitHub Release
+      # 9️⃣ Create GitHub release and upload APK
+      - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}  # use current tag
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # 🔟 Upload APK to the release
-      - name: Upload APK to Release
-        uses: softprops/action-gh-release@v2
-        with:
+          tag_name: ${{ steps.get_tag.outputs.tag }}
+          name: Release ${{ steps.get_tag.outputs.tag }}
+          overwrite_files: true
           files: app/build/outputs/apk/release/final/codec.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
