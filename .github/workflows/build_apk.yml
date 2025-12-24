@@ -54,7 +54,7 @@ jobs:
 
       # 6️⃣ Build the release APK
       - name: Build Release APK
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleDebug
 
       # 7️⃣ Rename APK to codec.apk
       - name: Rename APK
