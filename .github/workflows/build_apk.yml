@@ -72,7 +72,7 @@ jobs:
           draft: false
           prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       # 9️⃣ Upload APK to the release
       - name: Upload APK to Release
@@ -81,4 +81,4 @@ jobs:
           tag_name: ${{ github.ref_name }}
           files: app/build/outputs/apk/release/final/codec.apk
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
