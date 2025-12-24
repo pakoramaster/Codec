@@ -80,6 +80,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          files: app/build/outputs/apk/release/final/codec.apk
+          files: app/build/outputs/apk/debug/final/codec.apk
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
