@@ -49,9 +49,11 @@ import coil.compose.AsyncImage
 import coil.decode.ImageDecoderDecoder
 import com.example.codec.ui.theme.MGS
 import java.util.concurrent.TimeUnit
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.ui.text.font.FontWeight
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -67,8 +69,19 @@ class MainActivity : ComponentActivity() {
         val prefs = getSharedPreferences("leetcode_prefs", Context.MODE_PRIVATE)
         val savedUsername = prefs.getString("username", "") ?: ""
 
-        if (savedUsername.isNotBlank()) {
-            scheduleWorker(savedUsername)
+        lifecycleScope.launch {
+            if (savedUsername.isNotBlank()) {
+                // Switch to a background thread for the network call
+                val isValid = withContext(Dispatchers.IO) {
+                    LeetCodeApi.isValidUser(savedUsername)
+                }
+
+                if (isValid) {
+                    scheduleWorker(savedUsername)
+                } else {
+                    prefs.edit().remove("username").apply()
+                }
+            }
         }
 
         setContent {
@@ -125,7 +138,8 @@ fun MainScreen(
 ) {
     var text by remember { mutableStateOf(username) }
     val snackbarHostState = remember { SnackbarHostState() }
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     val imageLoader = ImageLoader.Builder(context)
         .components {
@@ -135,7 +149,15 @@ fun MainScreen(
 
     Scaffold(
         containerColor = Color.Black,
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                CustomNeonSnackbar(
+                    message = data.visuals.message,
+                    isError = data.visuals.message.contains("Invalid") || data.visuals.message.contains("empty"),
+                    fontFamily = MGS
+                )
+            }
+        }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -144,10 +166,6 @@ fun MainScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            val imageLoader = ImageLoader.Builder(LocalContext.current)
-                .components { add(ImageDecoderDecoder.Factory()) }
-                .build()
-
             LeetCodeSnakeGif(
                 imageLoader = imageLoader,
                 imageRes = R.drawable.snake_blink,
@@ -170,9 +188,28 @@ fun MainScreen(
                 text = "Save",
                 fontFamily = MGS,
                 onClick = {
-                    if (text.isNotBlank()) {
-                        onSave(text)
-                        // show snackbar or do other logic here
+                    scope.launch {
+                        if (text.isBlank()) {
+                            snackbarHostState.showSnackbar(
+                                "Username cannot be empty"
+                            )
+                            return@launch
+                        }
+
+                        val isValid = withContext(Dispatchers.IO) {
+                            LeetCodeApi.isValidUser(text)
+                        }
+
+                        if (!isValid) {
+                            snackbarHostState.showSnackbar(
+                                "Invalid LeetCode username"
+                            )
+                        } else {
+                            onSave(text)
+                            snackbarHostState.showSnackbar(
+                                "Username saved successfully"
+                            )
+                        }
                     }
                 }
             )
@@ -375,7 +412,7 @@ fun CompactNeonButton(
                 interactionSource = interactionSource,
                 indication = null // optional: remove ripple
             ) { onClick() }
-            .padding(bottom = 3.dp, start = 13.dp, end = 12.dp)
+            .padding(bottom = 3.dp, start = 13.5.dp, end = 12.dp)
 
     ) {
         Text(
@@ -383,6 +420,36 @@ fun CompactNeonButton(
             fontFamily = fontFamily,
             fontSize = 24.sp,
             color = if (isPressed) brightGreen else glowGreen
+        )
+    }
+}
+
+@Composable
+fun CustomNeonSnackbar(
+    message: String,
+    isError: Boolean = false,
+    modifier: Modifier = Modifier,
+    fontFamily: androidx.compose.ui.text.font.FontFamily
+) {
+    val glowColor = if (isError) Color(0xFFFF4A4A) else Color(0xFF4AFF7A)
+
+    Box(
+        modifier = modifier
+            .padding(12.dp)
+            .border(
+                width = 2.dp,
+                color = glowColor,
+                shape = RoundedCornerShape(6.dp)
+            )
+            .background(Color.Black, RoundedCornerShape(6.dp))
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        Text(
+            text = message,
+            color = glowColor,
+            fontFamily = fontFamily,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold
         )
     }
 }
