@@ -1,10 +1,9 @@
 name: Build and Release Android APK
 
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - main
+    tags:
+      - '*'  # Trigger on any tag push
 
 jobs:
   build-and-release:
@@ -21,7 +20,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Needed to push tags
+          fetch-depth: 0  # Important for tags
 
       # 2️⃣ Set up JDK 17
       - name: Set up JDK
@@ -53,47 +52,33 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      # 6️⃣ Generate new tag
-      - name: Create new tag
-        id: tag
-        run: |
-          NEW_TAG="v1.0.${GITHUB_RUN_NUMBER}"
-          git config user.name "github-actions"
-          git config user.email "github-actions@users.noreply.github.com"
-          git tag $NEW_TAG
-          git push https://$PAT_TOKEN@github.com/${{ github.repository }}.git $NEW_TAG
-          echo "tag=$NEW_TAG" >> $GITHUB_OUTPUT
-          echo "Created tag: $NEW_TAG"
-        env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-
-      # 7️⃣ Build the release APK
+      # 6️⃣ Build the release APK
       - name: Build Release APK
         run: ./gradlew assembleRelease
 
-      # 8️⃣ Rename APK to codec.apk
+      # 7️⃣ Rename APK to codec.apk
       - name: Rename APK
         run: |
           mkdir -p app/build/outputs/apk/release/final
           mv app/build/outputs/apk/release/*.apk app/build/outputs/apk/release/final/codec.apk
 
-      # 9️⃣ Create GitHub release
+      # 8️⃣ Create GitHub release using the tag
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: ${{ steps.tag.outputs.tag }}
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
           body: "Automated release of codec.apk"
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 🔟 Upload APK to release
+      # 9️⃣ Upload APK to the release
       - name: Upload APK to Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.tag }}
+          tag_name: ${{ github.ref_name }}
           files: app/build/outputs/apk/release/final/codec.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
