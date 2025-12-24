@@ -1,5 +1,5 @@
 **Description**
-- A compact Android application written in Kotlin using Jetpack Compose. It focuses on media handling (images, GIFs, audio/video) and modern Android app patterns: Compose UI, Media3 for playback, Coil for image loading (including GIFs), WorkManager for background jobs, and networking with OkHttp + Gson. See the app module at [app/build.gradle.kts](app/build.gradle.kts) and the dependency catalog at [gradle/libs.versions.toml](gradle/libs.versions.toml).
+- A compact Android application written in Kotlin using Jetpack Compose. It's a LeetCode reminder app with a UI heavily inspired by the "Codec" calls from Metal Gear Solid. Once a valid LeetCode username is provided, a Worker is scheduled to run periodically and send notifications if the user hasn't solved any LeetCode problems that day. The daily problem goal is currently hardcoded — future improvements include letting users set a custom daily LeetCode goal. 
 
 **Interesting techniques**
 - **Jetpack Compose UI**: declarative, state-driven UI with composable functions — see the official docs: https://developer.android.com/jetpack/compose
@@ -8,7 +8,7 @@
 - **Media playback with Media3**: ExoPlayer successor with media UI components and integration points — https://developer.android.com/guide/topics/media/media3
 - **Background work with WorkManager**: reliable, battery-friendly background jobs and constraints-aware scheduling — https://developer.android.com/topic/libraries/architecture/workmanager
 - **Low-level HTTP control with OkHttp + Gson**: fast HTTP client and compact JSON (de)serialization — OkHttp: https://square.github.io/okhttp/ — Gson: https://github.com/google/gson
-- **Gradle Version Catalog**: centralized dependency coordinates in `gradle/libs.versions.toml` for safer upgrades — https://docs.gradle.org/current/userguide/platforms.html#version-catalog
+
 
 **Non-obvious / noteworthy technologies**
 - Gradle Version Catalog (`gradle/libs.versions.toml`) for centralized dependency management.
