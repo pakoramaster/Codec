@@ -52,6 +52,11 @@ import java.util.concurrent.TimeUnit
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.ui.text.font.FontWeight
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -67,8 +72,21 @@ class MainActivity : ComponentActivity() {
         val prefs = getSharedPreferences("leetcode_prefs", Context.MODE_PRIVATE)
         val savedUsername = prefs.getString("username", "") ?: ""
 
-        if (savedUsername.isNotBlank()) {
-            scheduleWorker(savedUsername)
+        lifecycleScope.launch {
+            if (savedUsername.isNotBlank()) {
+                // Switch to a background thread for the network call
+                val isValid = withContext(Dispatchers.IO) {
+                    LeetCodeApi.isValidUser(savedUsername)
+                }
+
+                if (isValid) {
+                    scheduleWorker(savedUsername)
+                } else {
+                    // The user is not valid, clear the saved preference
+                    prefs.edit().remove("username").apply()
+                    // You might want to update the UI or show a message here
+                }
+            }
         }
 
         setContent {
@@ -125,7 +143,8 @@ fun MainScreen(
 ) {
     var text by remember { mutableStateOf(username) }
     val snackbarHostState = remember { SnackbarHostState() }
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     val imageLoader = ImageLoader.Builder(context)
         .components {
@@ -170,9 +189,28 @@ fun MainScreen(
                 text = "Save",
                 fontFamily = MGS,
                 onClick = {
-                    if (text.isNotBlank()) {
-                        onSave(text)
-                        // show snackbar or do other logic here
+                    scope.launch {
+                        if (text.isBlank()) {
+                            snackbarHostState.showSnackbar(
+                                "Username cannot be empty"
+                            )
+                            return@launch
+                        }
+
+                        val isValid = withContext(Dispatchers.IO) {
+                            LeetCodeApi.isValidUser(text)
+                        }
+
+                        if (!isValid) {
+                            snackbarHostState.showSnackbar(
+                                "Invalid LeetCode username"
+                            )
+                        } else {
+                            onSave(text)
+                            snackbarHostState.showSnackbar(
+                                "Username saved successfully"
+                            )
+                        }
                     }
                 }
             )
@@ -375,7 +413,7 @@ fun CompactNeonButton(
                 interactionSource = interactionSource,
                 indication = null // optional: remove ripple
             ) { onClick() }
-            .padding(bottom = 3.dp, start = 13.dp, end = 12.dp)
+            .padding(bottom = 3.dp, start = 13.5.dp, end = 12.dp)
 
     ) {
         Text(

@@ -16,6 +16,7 @@ class LeetCodeWorker(
     params: WorkerParameters
 ) : CoroutineWorker(context, params) {
 
+    @RequiresApi(Build.VERSION_CODES.O)
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override suspend fun doWork(): Result {
         return try {

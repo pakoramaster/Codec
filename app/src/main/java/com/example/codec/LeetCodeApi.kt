@@ -13,6 +13,37 @@ import java.time.ZoneOffset
 
 object LeetCodeApi {
 
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun isValidUser(username: String): Boolean {
+        val client = OkHttpClient()
+        val gson = Gson()
+
+        val queryJson = """
+        {
+          "query": "query userProfileCalendar(${'$'}username: String!) { matchedUser(username: ${'$'}username) { submissionCalendar } }",
+          "variables": { "username": "$username" }
+        }
+        """.trimIndent()
+
+        val body = queryJson.toRequestBody("application/json".toMediaType())
+
+        val request = Request.Builder()
+            .url("https://leetcode.com/graphql")
+            .post(body)
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return false
+
+            val responseBody = response.body?.string() ?: return false
+
+            val json = gson.fromJson(responseBody, JsonObject::class.java)
+            val data = json.getAsJsonObject("data") ?: return false
+            val matchedUser = data.get("matchedUser")
+            return matchedUser != null && !matchedUser.isJsonNull
+        }
+    }
+    @RequiresApi(Build.VERSION_CODES.O)
     fun getTodaySubmissions(username: String): Int {
         val client = OkHttpClient()
         val gson = Gson()
