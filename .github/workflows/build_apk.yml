@@ -59,8 +59,9 @@ jobs:
       # 7️⃣ Rename APK to codec.apk
       - name: Rename APK
         run: |
-          mkdir -p app/build/outputs/apk/release/final
-          mv app/build/outputs/apk/release/*.apk app/build/outputs/apk/release/final/codec.apk
+          mkdir -p app/build/outputs/apk/debug/final
+          mv app/build/outputs/apk/debug/*.apk app/build/outputs/apk/debug/final/codec.apk
+
 
       # 8️⃣ Create GitHub release using the tag
       - name: Create Release
