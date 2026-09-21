@@ -4,98 +4,90 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.time.Instant
+import java.time.DayOfWeek
+import java.time.ZoneId
 import java.time.ZoneOffset
 
 object LeetCodeApi {
 
+    private val client = OkHttpClient()
+    private val gson = Gson()
+
     @RequiresApi(Build.VERSION_CODES.O)
     fun isValidUser(username: String): Boolean {
-        val client = OkHttpClient()
-        val gson = Gson()
-
-        val queryJson = """
-        {
-          "query": "query userProfileCalendar(${'$'}username: String!) { matchedUser(username: ${'$'}username) { submissionCalendar } }",
-          "variables": { "username": "$username" }
-        }
-        """.trimIndent()
-
-        val body = queryJson.toRequestBody("application/json".toMediaType())
-
-        val request = Request.Builder()
-            .url("https://leetcode.com/graphql")
-            .post(body)
-            .build()
-
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return false
-
-            val responseBody = response.body?.string() ?: return false
-
-            val json = gson.fromJson(responseBody, JsonObject::class.java)
-            val data = json.getAsJsonObject("data") ?: return false
-            val matchedUser = data.get("matchedUser")
-            return matchedUser != null && !matchedUser.isJsonNull
-        }
+        return fetchSubmissionCalendar(username) != null
     }
     @RequiresApi(Build.VERSION_CODES.O)
     fun getTodaySubmissions(username: String): Int {
-        val client = OkHttpClient()
-        val gson = Gson()
-
-        val queryJson = """
-        {
-          "query": "query userProfileCalendar(${'$'}username: String!) { matchedUser(username: ${'$'}username) { submissionCalendar } }",
-          "variables": { "username": "$username" }
-        }
-        """.trimIndent()
-
-        val body = queryJson.toRequestBody("application/json".toMediaType())
-
-        val request = Request.Builder()
-            .url("https://leetcode.com/graphql")
-            .post(body)
-            .build()
-
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                return 0
-            }
-
-            val responseBody = response.body?.string() ?: return 0
-
-            val json = gson.fromJson(responseBody, JsonObject::class.java)
-            val data = json.getAsJsonObject("data") ?: return 0
-            val matchedUser = data.get("matchedUser")
-            if (matchedUser == null || matchedUser.isJsonNull) {
-                return 0
-            }
-
-            val calendarStr = matchedUser
-                .asJsonObject["submissionCalendar"]
-                .asString
-
-            val calendarMap: Map<String, Double> =
-                gson.fromJson(calendarStr, Map::class.java) as Map<String, Double>
-
-            val todayKey = getTodayUnixDay()
-            return calendarMap[todayKey]?.toInt() ?: 0
-        }
+        return getSubmissionCount(username, LeaderboardPeriod.DAY)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    private fun getTodayUnixDay(): String {
-        val now = Instant.now()
-            .atZone(ZoneOffset.UTC)
-            .toLocalDate()
-            .atStartOfDay(ZoneOffset.UTC)
-            .toEpochSecond()
+    fun getSubmissionCount(
+        username: String,
+        period: LeaderboardPeriod,
+        now: Instant = Instant.now()
+    ): Int {
+        val calendar = fetchSubmissionCalendar(username) ?: return 0
+        return countSubmissions(calendar, period, now)
+    }
 
-        return now.toString()
+    @RequiresApi(Build.VERSION_CODES.O)
+    internal fun countSubmissions(
+        calendar: Map<Long, Int>,
+        period: LeaderboardPeriod,
+        now: Instant,
+        zoneId: ZoneId = ZoneOffset.UTC
+    ): Int {
+        val today = now.atZone(zoneId).toLocalDate()
+        val firstDay = when (period) {
+            LeaderboardPeriod.DAY -> today
+            LeaderboardPeriod.WEEK -> today.minusDays(
+                (today.dayOfWeek.value - DayOfWeek.MONDAY.value).toLong()
+            )
+            LeaderboardPeriod.MONTH -> today.withDayOfMonth(1)
+        }
+
+        return calendar.entries.sumOf { (timestamp, count) ->
+            val date = Instant.ofEpochSecond(timestamp).atZone(zoneId).toLocalDate()
+            if (!date.isBefore(firstDay) && !date.isAfter(today)) count else 0
+        }
+    }
+
+    private fun fetchSubmissionCalendar(username: String): Map<Long, Int>? {
+        if (username.isBlank()) return null
+
+        val queryJson = gson.toJson(
+            mapOf(
+                "query" to "query userProfileCalendar(\$username: String!) { matchedUser(username: \$username) { submissionCalendar } }",
+                "variables" to mapOf("username" to username.trim())
+            )
+        )
+        val request = Request.Builder()
+            .url("https://leetcode.com/graphql")
+            .post(queryJson.toRequestBody("application/json".toMediaType()))
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return null
+            val responseBody = response.body?.string() ?: return null
+            val json = gson.fromJson(responseBody, JsonObject::class.java)
+            val matchedUser = json.getAsJsonObject("data")?.get("matchedUser")
+            if (matchedUser == null || matchedUser.isJsonNull) return null
+            val calendarString = matchedUser.asJsonObject["submissionCalendar"]?.asString
+                ?: return emptyMap()
+            return JsonParser.parseString(calendarString)
+                .asJsonObject
+                .entrySet()
+                .mapNotNull { (timestamp, count) ->
+                    timestamp.toLongOrNull()?.let { it to count.asInt }
+            }.toMap()
+        }
     }
 }

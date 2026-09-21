@@ -35,7 +35,7 @@ object NotificationUtils {
     }
 
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
-    fun send(context: Context) {
+    fun send(context: Context, completed: Int, goal: Int) {
         val originalIcon = BitmapFactory.decodeResource(context.resources, R.drawable.ic_stat_name)
 
         // 1. Define the desired visual scale (e.g., 75%)
@@ -77,7 +77,7 @@ object NotificationUtils {
         )
 
         // Randomly select a notification text from the list
-        val notificationText = notificationTexts.random()
+        val notificationText = "${notificationTexts.random()} Mission progress: $completed/$goal today."
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_name) // Correct monochrome icon

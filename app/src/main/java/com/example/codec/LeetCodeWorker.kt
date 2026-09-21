@@ -7,8 +7,6 @@ import androidx.annotation.RequiresApi
 import androidx.annotation.RequiresPermission
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import java.time.Instant
-import java.time.ZoneOffset
 import android.util.Log
 
 class LeetCodeWorker(
@@ -21,12 +19,14 @@ class LeetCodeWorker(
     override suspend fun doWork(): Result {
         return try {
             val username = inputData.getString("username") ?: return Result.failure()
+            val dailyGoal = inputData.getInt("daily_goal", UserSettings.DEFAULT_DAILY_GOAL)
+                .coerceAtLeast(1)
             val submissions = LeetCodeApi.getTodaySubmissions(username)
 
-            if (submissions == 0) {
-                NotificationUtils.send(applicationContext)
+            if (submissions < dailyGoal) {
+                NotificationUtils.send(applicationContext, submissions, dailyGoal)
             }
-            Log.d("MainScreen", "Submissions count = $submissions")
+            Log.d("LeetCodeWorker", "Daily submissions = $submissions/$dailyGoal")
 
             Result.success()
         } catch (e: Exception) {
@@ -34,14 +34,4 @@ class LeetCodeWorker(
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
-    private fun getTodayUnixDay(): String {
-        val now = Instant.now()
-            .atZone(ZoneOffset.UTC)
-            .toLocalDate()
-            .atStartOfDay(ZoneOffset.UTC)
-            .toEpochSecond()
-
-        return now.toString()
-    }
 }

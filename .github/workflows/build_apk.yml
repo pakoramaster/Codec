@@ -1,85 +1,149 @@
-name: Build and Release Android APK
+name: Build and release
 
 on:
   push:
-    tags:
-      - '*'  # Trigger on any tag push
+    branches:
+      # The repository currently uses master. Keep main ready for a future rename.
+      - master
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: codec-release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  build-and-release:
-    name: Build and Release APK
+  android:
+    name: Verify and build Android APK
     runs-on: ubuntu-latest
 
-    env:
-      JAVA_HOME: /usr/lib/jvm/java-17-openjdk
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-
     steps:
-      # 1️⃣ Checkout repository
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Check out repository
+        uses: actions/checkout@v6
         with:
-          fetch-depth: 0  # Important for tags
+          fetch-depth: 0
 
-      # 2️⃣ Set up JDK 17
-      - name: Set up JDK
-        uses: actions/setup-java@v3
+      - name: Set up Java
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
+          cache: gradle
 
-      # 3️⃣ Cache Gradle dependencies
-      - name: Cache Gradle packages
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper/
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-
+      - name: Read application version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^APP_VERSION=//p' gradle.properties | tr -d '\r')"
+          if [ -z "$version" ]; then
+            echo "APP_VERSION is missing from gradle.properties" >&2
+            exit 1
+          fi
+          echo "value=$version" >> "$GITHUB_OUTPUT"
 
-      # 4️⃣ Set up Android SDK
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          api-level: 33
-          build-tools: 34.0.0
-          ndk: 25.2.9519653
-
-      # 5️⃣ Grant execute permission for Gradle wrapper
-      - name: Make gradlew executable
+      - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
-      # 6️⃣ Build the release APK
-      - name: Build Release APK
-        run: ./gradlew assembleDebug
-
-      # 7️⃣ Rename APK to codec.apk
-      - name: Rename APK
+      - name: Restore Android signing keystore
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          mkdir -p app/build/outputs/apk/debug/final
-          mv app/build/outputs/apk/debug/*.apk app/build/outputs/apk/debug/final/codec.apk
+          set -euo pipefail
+          for variable in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!variable:-}" ]; then
+              echo "Required secret $variable is not configured" >&2
+              exit 1
+            fi
+          done
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/codec-release.jks"
 
-
-      # 8️⃣ Create GitHub release using the tag
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          body: "Automated release of codec.apk"
-          draft: true
-          prerelease: false
+      - name: Test, lint, and build signed release APK
         env:
-          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/codec-release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: >-
+          ./gradlew testDebugUnitTest lintRelease assembleRelease
+          -PAPP_VERSION_CODE=${{ github.run_number }}
+          --no-daemon --stacktrace
 
-      # 9️⃣ Upload APK to the release
-      - name: Upload APK to Release
-        uses: softprops/action-gh-release@v2
+      - name: Verify APK signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="app/build/outputs/apk/release/app-release.apk"
+          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          if [ -z "$apksigner" ]; then
+            echo "apksigner was not found in the Android SDK" >&2
+            exit 1
+          fi
+          "$apksigner" verify --verbose --print-certs "$apk"
+
+      - name: Stage APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          cp app/build/outputs/apk/release/app-release.apk \
+            "artifacts/Codec-${{ steps.version.outputs.value }}-Android.apk"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v6
         with:
-          tag_name: ${{ github.ref_name }}
-          files: app/build/outputs/apk/debug/final/codec.apk
+          name: codec-android-${{ steps.version.outputs.value }}
+          path: artifacts/*.apk
+          if-no-files-found: error
+
+  release:
+    name: Publish versioned GitHub release
+    needs: android
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Read application version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^APP_VERSION=//p' gradle.properties | tr -d '\r')"
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Point version tag at this build
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git tag --force "$RELEASE_TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$RELEASE_TAG" --force
+
+      - name: Download APK
+        uses: actions/download-artifact@v7
+        with:
+          name: codec-android-${{ steps.version.outputs.value }}
+          path: artifacts
+
+      - name: Publish or overwrite GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Codec ${{ steps.version.outputs.value }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          files: artifacts/*.apk
+          overwrite_files: true

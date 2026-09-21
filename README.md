@@ -36,4 +36,16 @@ gradlew.bat
 - `build/`: build outputs (generated, ignored in VCS).
 - `local.properties`, `gradlew`, and `settings.gradle.kts`: standard Android/Gradle tooling and workspace config.
 
+**Versioned releases**
+- Edit `APP_VERSION` in [gradle.properties](gradle.properties) before publishing a new release (for example, `1.0.0` to `1.1.0`).
+- Every push to the repository's current default branch (`master`) runs unit tests, lint, and an APK build. The workflow also listens to `main` so it is ready if the default branch is renamed.
+- GitHub Actions supplies `versionCode` from its monotonically increasing run number; local builds fall back to `APP_VERSION_CODE`.
+- Every successful push points `v<APP_VERSION>` at the new commit and creates or updates that GitHub release. Repeated pushes with the same version replace its existing `Codec-<APP_VERSION>-Android.apk`; incrementing `APP_VERSION` starts a new release.
+- Release APKs are signed with a persistent private key restored from GitHub Actions secrets. The workflow fails instead of publishing if any signing secret is missing, and verifies the completed APK with `apksigner` before uploading it.
+
+**One-time Android signing setup**
+1. Run `./scripts/setup-release-signing.ps1` from PowerShell and enter new keystore and key passwords when prompted. The script generates a 4096-bit RSA key, uploads the four required GitHub Actions secrets, and never commits the private key.
+2. Securely back up `signing/codec-release.jks`, its `codec` alias, and both passwords somewhere outside the repository. The adjacent `.pem` file is only the public certificate.
+3. Keep that backup permanently. Android only accepts an update when it is signed with the same key as the installed app. Existing debug-signed installations must be uninstalled once before installing the first release-signed APK.
+
 <img src="assets/code-ui.jpeg" alt="ui" style="width:30%; height:auto;" />
